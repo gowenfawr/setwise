@@ -1,0 +1,115 @@
+#!/usr/bin/perl
+#
+# Usage: setwise <input-A|-> <intersect|union|except> <input-B|->
+# 
+# Given two sets of input with the same format (e.g., one IP address per line)
+# perform the specified set operation (A intersect B, A union B, A except B)
+#
+
+my %HASH1 = ();
+my %HASH2 = ();
+my ($fp1, $fp2);
+my ($case) = 0;
+my $aeol = "";
+my $beol = "";
+
+if ($ARGV[0] eq '-i') {
+    $case = 1;
+    shift @ARGV;
+}
+if (($ARGV[1] eq "intersect") ||
+    ($ARGV[1] eq "union") ||
+    ($ARGV[1] eq "except"))
+{
+    $action = $ARGV[1];
+} else {
+    print STDERR "Usage: setwise [-i] <input-A> <intersect|union|except> <input-B>\n";
+    print STDERR "       Each input must be either a file or '-' for STDIN.\n";
+    print STDERR "       -i designates case-insensitive matching.\n";
+}
+
+open(SET_A, "<$ARGV[0]") or die "Couldn't open <input-A> <$ARGV[0]>: $!";
+
+if (defined $ARGV[2])
+{
+    open(SET_B, "<$ARGV[2]") or die "Couldn't open <input-B> <$ARGV[2]>: $!";
+    $fp2 = \*SET_B;
+} else {
+    $fp2 = \*STDIN;
+}
+
+foreach my $line (<SET_A>)
+{
+    if ($case) {
+        $HASH1{lc($line)} = $line;
+    } else {
+        $HASH1{$line} = $line;
+    }
+    if ($aeol eq "") {
+        if ($line =~ /\r\n$/) {
+            $aeol = "DOS CR/LF";
+        } elsif ($line =~ /\n$/) {
+            $aeol = "Unix LF";
+        } else {
+            $aeol = "Unknown";
+        }
+    }
+}
+
+foreach my $line (<$fp2>)
+{
+    if ($case) {
+        $HASH2{lc($line)} = $line;
+    } else {
+        $HASH2{$line} = $line;
+    }
+    if ($beol eq "") {
+        if ($line =~ /\r\n$/) {
+            $beol = "DOS CR/LF";
+        } elsif ($line =~ /\n$/) {
+            $beol = "Unix LF";
+        } else {
+            $beol = "Unknown";
+        }
+    }
+}
+
+close(SET_A);
+close(SET_B);
+
+if ($aeol ne $beol) {
+    print STDERR "Warning: Line endings ($aeol, $beol) do not match!\n";
+}
+
+&$action();
+
+foreach my $key (sort keys %HASH1) { print $HASH1{$key}; }
+
+exit;
+
+##
+## $action subroutines below here
+##
+sub except 
+{
+	foreach my $key (keys %HASH1)
+	{
+		if (exists $HASH2{$key}) { delete $HASH1{$key}; }
+	}
+}
+
+sub intersect
+{
+	foreach my $key (keys %HASH1)
+	{
+		delete $HASH1{$key} unless (exists $HASH2{$key});
+    }
+}
+
+sub union
+{
+	foreach my $key (keys %HASH2)
+	{
+		$HASH1{$key} = $HASH2{$key};
+	}
+}
